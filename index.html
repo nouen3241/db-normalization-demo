@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>データベース正規化デモ</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        
+        .section h2 {
+            color: #34495e;
+            margin-top: 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background-color: white;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        
+        .checklist {
+            margin: 20px 0;
+        }
+        
+        .checklist label {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .checklist label:hover {
+            background-color: #e8f4fd;
+        }
+        
+        .checklist input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .result.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .result.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .result.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .copy-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        .copy-button:hover {
+            background-color: #218838;
+        }
+        
+        .copy-button.copied {
+            background-color: #6f42c1;
+        }
+        
+        .query-section {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .query-header {
+            background-color: #f8f9fa;
+            padding: 10px 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .query-content {
+            padding: 0;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .explanation {
+            background-color: #e8f4fd;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>データベース正規化・クリーニングツール</h1>
+        
+        <div class="section">
+            <h2>サンプルテーブル: クリーニング対象データ</h2>
+            <table id="sampleTable">
+                <thead>
+                    <tr>
+                        <th>注文ID</th>
+                        <th>顧客名</th>
+                        <th>顧客電話</th>
+                        <th>顧客住所</th>
+                        <th>商品名</th>
+                        <th>商品カテゴリ</th>
+                        <th>価格</th>
+                        <th>数量</th>
+                        <th>注文日</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>田中太郎</td>
+                        <td>090-1234-5678</td>
+                        <td>東京都渋谷区　</td>
+                        <td>ノートPC</td>
+                        <td>コンピュータ</td>
+                        <td>80000</td>
+                        <td>1</td>
+                        <td>24/01/15</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>田中　太郎</td>
+                        <td>09012345678</td>
+                        <td>東京都渋谷区</td>
+                        <td>マウス</td>
+                        <td>PC周辺機器</td>
+                        <td>2000</td>
+                        <td>2</td>
+                        <td>2024-1-15</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>佐藤花子</td>
+                        <td>080-9876-5432</td>
+                        <td>大阪府大阪市</td>
+                        <td>keyboard</td>
+                        <td>コンピューター</td>
+                        <td></td>
+                        <td>1</td>
+                        <td>2024/01/16</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>SATOU HANAKO</td>
+                        <td>080-9876-5432</td>
+                        <td>大阪府大阪市 </td>
+                        <td>液晶モニター</td>
+                        <td>コンピュータ</td>
+                        <td>25000</td>
+                        <td>1</td>
+                        <td>2024-01-16</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td>田中太郎</td>
+                        <td>090-1234-5678</td>
+                        <td>東京都渋谷区　</td>
+                        <td>ノートPC</td>
+                        <td>コンピュータ</td>
+                        <td>80000</td>
+                        <td>1</td>
+                        <td>24/01/15</td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td>山田 三郎</td>
+                        <td>NULL</td>
+                        <td></td>
+                        <td>SSD</td>
+                        <td>ストレージ</td>
+                        <td>15000.0</td>
+                        <td>2</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h2>データクリーニング・正規化チェックリスト</h2>
+            <div class="explanation">
+                以下のチェックリストから実行したいデータクリーニング処理を選択してください。
+                選択した項目に対応するSQL（BigQuery/SQLite）クエリが生成されます。
+            </div>
+            
+            <div class="checklist">
+                <label>
+                    <input type="checkbox" id="check1" value="duplicate_data">
+                    重複データの検出・削除
+                </label>
+                
+                <label>
+                    <input type="checkbox" id="check2" value="whitespace_cleanup">
+                    空白文字の統一（先頭・末尾の空白除去、全角→半角）
+                </label>
+                
+                <label>
+                    <input type="checkbox" id="check3" value="case_normalization">
+                    大文字・小文字の統一
+                </label>
+                
+                <label>
+                    <input type="checkbox" id="check4" value="null_empty_check">
+                    NULL値・空文字列の検出
+                </label>
+                
+                <label>
+                    <input type="checkbox" id="check5" value="date_format_standardization">
+                    日付形式の統一
+                </label>
+                
+                <label>
+                    <input type="checkbox" id="check6" value="phone_format_standardization">
+                    電話番号形式の統一
+                </label>
+                
+                <label>
+                    <input type="checkbox" id="check7" value="category_standardization">
+                    カテゴリ表記ゆれの統一
+                </label>
+                
+                <label>
+                    <input type="checkbox" id="check8" value="data_type_validation">
+                    データ型の検証（数値、日付等）
+                </label>
+                
+                <label>
+                    <input type="checkbox" id="check9" value="length_validation">
+                    文字数制限のチェック
+                </label>
+                
+                <label>
+                    <input type="checkbox" id="check10" value="special_char_check">
+                    特殊文字・異常文字の検出
+                </label>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">テーブル名設定:</label>
+                    <input type="text" id="tableName" placeholder="テーブル名を入力 (例: orders)" value="orders" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 200px;">
+                    <small style="color: #666; display: block; margin-top: 5px;">BigQueryの場合: `project.dataset.table` 形式で入力可能</small>
+                </div>
+                
+                <div>
+                    <label>
+                        <input type="radio" name="sql_type" value="bigquery" checked>
+                        BigQuery
+                    </label>
+                    <label style="margin-left: 20px;">
+                        <input type="radio" name="sql_type" value="sqlite">
+                        SQLite
+                    </label>
+                </div>
+            </div>
+            
+            <button onclick="generateSQL()">SQLクエリ生成</button>
+            <button onclick="resetChecks()">リセット</button>
+            
+            <div id="result" class="result" style="display: none;"></div>
+        </div>
+        
+        <div class="section" id="sqlOutput" style="display: none;">
+            <h2>生成されたSQLクエリ</h2>
+            <div id="generatedQueries"></div>
+        </div>
+    </div>
+
+    <script>
+        const sqlQueries = {
+            duplicate_data: {
+                bigquery: {
+                    title: "重複データの検出・削除",
+                    description: "完全に一致する重複行を検出し、削除する",
+                    detection: `-- 重複データの検出
+SELECT 
+  顧客名, 顧客電話, 顧客住所, 商品名, 商品カテゴリ, 価格, 数量, 注文日,
+  COUNT(*) as duplicate_count
+FROM \`your_project.your_dataset.orders\`
+GROUP BY 顧客名, 顧客電話, 顧客住所, 商品名, 商品カテゴリ, 価格, 数量, 注文日
+HAVING COUNT(*) > 1;`,
+                    cleanup: `-- 重複データの削除（最新の注文IDを残す）
+DELETE FROM \`your_project.your_dataset.orders\`
+WHERE 注文ID NOT IN (
+  SELECT MAX(注文ID)
+  FROM \`your_project.your_dataset.orders\`
+  GROUP BY 顧客名, 顧客電話, 顧客住所, 商品名, 商品カテゴリ, 価格, 数量, 注文日
+);`
+                },
+                sqlite: {
+                    title: "重複データの検出・削除",
+                    description: "完全に一致する重複行を検出し、削除する",
+                    detection: `-- 重複データの検出
+SELECT 
+  顧客名, 顧客電話, 顧客住所, 商品名, 商品カテゴリ, 価格, 数量, 注文日,
+  COUNT(*) as duplicate_count
+FROM orders
+GROUP BY 顧客名, 顧客電話, 顧客住所, 商品名, 商品カテゴリ, 価格, 数量, 注文日
+HAVING COUNT(*) > 1;`,
+                    cleanup: `-- 重複データの削除（ROWIDを使用）
+DELETE FROM orders 
+WHERE ROWID NOT IN (
+  SELECT MIN(ROWID)
+  FROM orders
+  GROUP BY 顧客名, 顧客電話, 顧客住所, 商品名, 商品カテゴリ, 価格, 数量, 注文日
+);`
+                }
+            },
+            whitespace_cleanup: {
+                bigquery: {
+                    title: "空白文字の統一",
+                    description: "先頭・末尾の空白除去、全角→半角変換",
+                    detection: `-- 空白文字の問題を検出
+SELECT 注文ID, 顧客名, 顧客住所,
+  CASE 
+    WHEN 顧客名 != TRIM(顧客名) THEN '先頭末尾に空白'
+    WHEN 顧客住所 != TRIM(顧客住所) THEN '先頭末尾に空白'
+    WHEN REGEXP_CONTAINS(顧客名, r'[　\\s]{2,}') THEN '連続空白'
+    ELSE 'OK'
+  END as whitespace_issue
+FROM \`your_project.your_dataset.orders\`
+WHERE 顧客名 != TRIM(顧客名) 
+   OR 顧客住所 != TRIM(顧客住所)
+   OR REGEXP_CONTAINS(顧客名, r'[　\\s]{2,}');`,
+                    cleanup: `-- 空白文字のクリーンアップ
+UPDATE \`your_project.your_dataset.orders\`
+SET 
+  顧客名 = TRIM(REGEXP_REPLACE(顧客名, r'[　\\s]+', ' ')),
+  顧客住所 = TRIM(REGEXP_REPLACE(顧客住所, r'[　\\s]+', ' ')),
+  商品名 = TRIM(REGEXP_REPLACE(商品名, r'[　\\s]+', ' '))
+WHERE TRUE;`
+                },
+                sqlite: {
+                    title: "空白文字の統一",
+                    description: "先頭・末尾の空白除去",
+                    detection: `-- 空白文字の問題を検出
+SELECT 注文ID, 顧客名, 顧客住所,
+  CASE 
+    WHEN 顧客名 != TRIM(顧客名) THEN '先頭末尾に空白'
+    WHEN 顧客住所 != TRIM(顧客住所) THEN '先頭末尾に空白'
+    ELSE 'OK'
+  END as whitespace_issue
+FROM orders
+WHERE 顧客名 != TRIM(顧客名) 
+   OR 顧客住所 != TRIM(顧客住所);`,
+                    cleanup: `-- 空白文字のクリーンアップ
+UPDATE orders
+SET 
+  顧客名 = TRIM(顧客名),
+  顧客住所 = TRIM(顧客住所),
+  商品名 = TRIM(商品名);`
+                }
+            },
+            case_normalization: {
+                bigquery: {
+                    title: "大文字・小文字の統一",
+                    description: "文字の大小統一（全て小文字に変換）",
+                    detection: `-- 大文字小文字の不統一を検出
+SELECT 注文ID, 顧客名, 商品名,
+  CASE 
+    WHEN 顧客名 != LOWER(顧客名) THEN '大文字含む'
+    WHEN 商品名 != LOWER(商品名) THEN '大文字含む'
+    ELSE 'OK'
+  END as case_issue
+FROM \`your_project.your_dataset.orders\`
+WHERE 顧客名 != LOWER(顧客名) OR 商品名 != LOWER(商品名);`,
+                    cleanup: `-- 大文字小文字の統一
+UPDATE \`your_project.your_dataset.orders\`
+SET 
+  顧客名 = LOWER(顧客名),
+  商品名 = LOWER(商品名)
+WHERE TRUE;`
+                },
+                sqlite: {
+                    title: "大文字・小文字の統一",
+                    description: "文字の大小統一（全て小文字に変換）",
+                    detection: `-- 大文字小文字の不統一を検出
+SELECT 注文ID, 顧客名, 商品名,
+  CASE 
+    WHEN 顧客名 != LOWER(顧客名) THEN '大文字含む'
+    WHEN 商品名 != LOWER(商品名) THEN '大文字含む'
+    ELSE 'OK'
+  END as case_issue
+FROM orders
+WHERE 顧客名 != LOWER(顧客名) OR 商品名 != LOWER(商品名);`,
+                    cleanup: `-- 大文字小文字の統一
+UPDATE orders
+SET 
+  顧客名 = LOWER(顧客名),
+  商品名 = LOWER(商品名);`
+                }
+            },
+            null_empty_check: {
+                bigquery: {
+                    title: "NULL値・空文字列の検出",
+                    description: "NULL値や空文字列を検出",
+                    detection: `-- NULL値・空文字列の検出
+SELECT 注文ID,
+  CASE 
+    WHEN 顧客名 IS NULL OR 顧客名 = '' THEN '顧客名がNULL/空'
+    WHEN 顧客電話 IS NULL OR 顧客電話 = '' OR 顧客電話 = 'NULL' THEN '電話番号がNULL/空'
+    WHEN 顧客住所 IS NULL OR 顧客住所 = '' THEN '住所がNULL/空'
+    WHEN 商品名 IS NULL OR 商品名 = '' THEN '商品名がNULL/空'
+    WHEN 価格 IS NULL OR 価格 = '' THEN '価格がNULL/空'
+    WHEN 注文日 IS NULL OR 注文日 = '' THEN '注文日がNULL/空'
+    ELSE 'OK'
+  END as null_issue
+FROM \`your_project.your_dataset.orders\`
+WHERE 顧客名 IS NULL OR 顧客名 = ''
+   OR 顧客電話 IS NULL OR 顧客電話 = '' OR 顧客電話 = 'NULL'
+   OR 顧客住所 IS NULL OR 顧客住所 = ''
+   OR 商品名 IS NULL OR 商品名 = ''
+   OR 価格 IS NULL OR 価格 = ''
+   OR 注文日 IS NULL OR 注文日 = '';`,
+                    cleanup: `-- NULL値・空文字列の対処例
+UPDATE \`your_project.your_dataset.orders\`
+SET 
+  顧客電話 = '不明'
+WHERE 顧客電話 IS NULL OR 顧客電話 = '' OR 顧客電話 = 'NULL';`
+                },
+                sqlite: {
+                    title: "NULL値・空文字列の検出",
+                    description: "NULL値や空文字列を検出",
+                    detection: `-- NULL値・空文字列の検出
+SELECT 注文ID,
+  CASE 
+    WHEN 顧客名 IS NULL OR 顧客名 = '' THEN '顧客名がNULL/空'
+    WHEN 顧客電話 IS NULL OR 顧客電話 = '' OR 顧客電話 = 'NULL' THEN '電話番号がNULL/空'
+    WHEN 顧客住所 IS NULL OR 顧客住所 = '' THEN '住所がNULL/空'
+    WHEN 商品名 IS NULL OR 商品名 = '' THEN '商品名がNULL/空'
+    WHEN 価格 IS NULL OR 価格 = '' THEN '価格がNULL/空'
+    WHEN 注文日 IS NULL OR 注文日 = '' THEN '注文日がNULL/空'
+    ELSE 'OK'
+  END as null_issue
+FROM orders
+WHERE 顧客名 IS NULL OR 顧客名 = ''
+   OR 顧客電話 IS NULL OR 顧客電話 = '' OR 顧客電話 = 'NULL'
+   OR 顧客住所 IS NULL OR 顧客住所 = ''
+   OR 商品名 IS NULL OR 商品名 = ''
+   OR 価格 IS NULL OR 価格 = ''
+   OR 注文日 IS NULL OR 注文日 = '';`,
+                    cleanup: `-- NULL値・空文字列の対処例
+UPDATE orders
+SET 顧客電話 = '不明'
+WHERE 顧客電話 IS NULL OR 顧客電話 = '' OR 顧客電話 = 'NULL';`
+                }
+            },
+            date_format_standardization: {
+                bigquery: {
+                    title: "日付形式の統一",
+                    description: "様々な日付形式をYYYY-MM-DD形式に統一",
+                    detection: `-- 日付形式の不統一を検出
+SELECT 注文ID, 注文日,
+  CASE 
+    WHEN 注文日 LIKE '%/%' AND LENGTH(注文日) < 10 THEN '短縮形式'
+    WHEN 注文日 LIKE '%/%' THEN 'スラッシュ形式'
+    WHEN 注文日 LIKE '%-%' AND LENGTH(注文日) = 10 THEN '標準形式'
+    WHEN 注文日 = '' OR 注文日 IS NULL THEN '空/NULL'
+    ELSE '不明形式'
+  END as date_format
+FROM \`your_project.your_dataset.orders\`
+WHERE 注文日 IS NOT NULL AND 注文日 != '';`,
+                    cleanup: `-- 日付形式の統一
+UPDATE \`your_project.your_dataset.orders\`
+SET 注文日 = 
+  CASE 
+    WHEN 注文日 LIKE '__/__/__' THEN CONCAT('20', SUBSTR(注文日, 1, 2), '-', LPAD(SUBSTR(注文日, 4, 2), 2, '0'), '-', LPAD(SUBSTR(注文日, 7, 2), 2, '0'))
+    WHEN 注文日 LIKE '____-_-__' THEN CONCAT(SUBSTR(注文日, 1, 4), '-', LPAD(SUBSTR(注文日, 6, 1), 2, '0'), '-', SUBSTR(注文日, 8, 2))
+    WHEN 注文日 LIKE '____/_/__' THEN REPLACE(注文日, '/', '-')
+    ELSE 注文日
+  END
+WHERE 注文日 IS NOT NULL AND 注文日 != '';`
+                },
+                sqlite: {
+                    title: "日付形式の統一",
+                    description: "様々な日付形式をYYYY-MM-DD形式に統一",
+                    detection: `-- 日付形式の不統一を検出
+SELECT 注文ID, 注文日,
+  CASE 
+    WHEN 注文日 LIKE '%/%' AND LENGTH(注文日) < 10 THEN '短縮形式'
+    WHEN 注文日 LIKE '%/%' THEN 'スラッシュ形式'
+    WHEN 注文日 LIKE '%-%' AND LENGTH(注文日) = 10 THEN '標準形式'
+    WHEN 注文日 = '' OR 注文日 IS NULL THEN '空/NULL'
+    ELSE '不明形式'
+  END as date_format
+FROM orders
+WHERE 注文日 IS NOT NULL AND 注文日 != '';`,
+                    cleanup: `-- 日付形式の統一
+UPDATE orders
+SET 注文日 = 
+  CASE 
+    WHEN 注文日 LIKE '__/__/__' THEN '20' || SUBSTR(注文日, 1, 2) || '-' || PRINTF('%02d', SUBSTR(注文日, 4, 2)) || '-' || PRINTF('%02d', SUBSTR(注文日, 7, 2))
+    WHEN 注文日 LIKE '____-_-__' THEN SUBSTR(注文日, 1, 4) || '-' || PRINTF('%02d', SUBSTR(注文日, 6, 1)) || '-' || SUBSTR(注文日, 8, 2)
+    WHEN 注文日 LIKE '____/__/__' THEN REPLACE(注文日, '/', '-')
+    ELSE 注文日
+  END
+WHERE 注文日 IS NOT NULL AND 注文日 != '';`
+                }
+            },
+            phone_format_standardization: {
+                bigquery: {
+                    title: "電話番号形式の統一",
+                    description: "電話番号をXXX-XXXX-XXXX形式に統一",
+                    detection: `-- 電話番号形式の不統一を検出
+SELECT 注文ID, 顧客電話,
+  CASE 
+    WHEN 顧客電話 LIKE '___-____-____' THEN '標準形式'
+    WHEN REGEXP_CONTAINS(顧客電話, r'^[0-9]{11}$') THEN 'ハイフンなし'
+    WHEN 顧客電話 = 'NULL' OR 顧客電話 IS NULL THEN 'NULL'
+    ELSE '不明形式'
+  END as phone_format
+FROM \`your_project.your_dataset.orders\`
+WHERE 顧客電話 IS NOT NULL;`,
+                    cleanup: `-- 電話番号形式の統一
+UPDATE \`your_project.your_dataset.orders\`
+SET 顧客電話 = 
+  CASE 
+    WHEN REGEXP_CONTAINS(顧客電話, r'^[0-9]{11}$') THEN 
+      CONCAT(SUBSTR(顧客電話, 1, 3), '-', SUBSTR(顧客電話, 4, 4), '-', SUBSTR(顧客電話, 8, 4))
+    WHEN 顧客電話 = 'NULL' THEN NULL
+    ELSE 顧客電話
+  END
+WHERE 顧客電話 IS NOT NULL;`
+                },
+                sqlite: {
+                    title: "電話番号形式の統一",
+                    description: "電話番号をXXX-XXXX-XXXX形式に統一",
+                    detection: `-- 電話番号形式の不統一を検出
+SELECT 注文ID, 顧客電話,
+  CASE 
+    WHEN 顧客電話 LIKE '___-____-____' THEN '標準形式'
+    WHEN LENGTH(顧客電話) = 11 AND 顧客電話 GLOB '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]' THEN 'ハイフンなし'
+    WHEN 顧客電話 = 'NULL' OR 顧客電話 IS NULL THEN 'NULL'
+    ELSE '不明形式'
+  END as phone_format
+FROM orders
+WHERE 顧客電話 IS NOT NULL;`,
+                    cleanup: `-- 電話番号形式の統一
+UPDATE orders
+SET 顧客電話 = 
+  CASE 
+    WHEN LENGTH(顧客電話) = 11 AND 顧客電話 GLOB '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]' THEN 
+      SUBSTR(顧客電話, 1, 3) || '-' || SUBSTR(顧客電話, 4, 4) || '-' || SUBSTR(顧客電話, 8, 4)
+    WHEN 顧客電話 = 'NULL' THEN NULL
+    ELSE 顧客電話
+  END
+WHERE 顧客電話 IS NOT NULL;`
+                }
+            },
+            category_standardization: {
+                bigquery: {
+                    title: "カテゴリ表記ゆれの統一",
+                    description: "カテゴリ名の表記ゆれを統一",
+                    detection: `-- カテゴリ表記ゆれの検出
+SELECT DISTINCT 商品カテゴリ, COUNT(*) as count
+FROM \`your_project.your_dataset.orders\`
+GROUP BY 商品カテゴリ
+ORDER BY 商品カテゴリ;`,
+                    cleanup: `-- カテゴリ表記ゆれの統一
+UPDATE \`your_project.your_dataset.orders\`
+SET 商品カテゴリ = 
+  CASE 
+    WHEN 商品カテゴリ IN ('コンピューター', 'コンピュータ') THEN 'コンピュータ'
+    WHEN 商品カテゴリ = 'PC周辺機器' THEN 'コンピュータ'
+    ELSE 商品カテゴリ
+  END
+WHERE TRUE;`
+                },
+                sqlite: {
+                    title: "カテゴリ表記ゆれの統一",
+                    description: "カテゴリ名の表記ゆれを統一",
+                    detection: `-- カテゴリ表記ゆれの検出
+SELECT DISTINCT 商品カテゴリ, COUNT(*) as count
+FROM orders
+GROUP BY 商品カテゴリ
+ORDER BY 商品カテゴリ;`,
+                    cleanup: `-- カテゴリ表記ゆれの統一
+UPDATE orders
+SET 商品カテゴリ = 
+  CASE 
+    WHEN 商品カテゴリ IN ('コンピューター', 'コンピュータ') THEN 'コンピュータ'
+    WHEN 商品カテゴリ = 'PC周辺機器' THEN 'コンピュータ'
+    ELSE 商品カテゴリ
+  END;`
+                }
+            },
+            data_type_validation: {
+                bigquery: {
+                    title: "データ型の検証",
+                    description: "数値や日付などのデータ型の妥当性をチェック",
+                    detection: `-- データ型の検証
+SELECT 注文ID, 価格, 数量,
+  CASE 
+    WHEN SAFE_CAST(価格 AS INT64) IS NULL AND 価格 IS NOT NULL AND 価格 != '' THEN '価格が数値でない'
+    WHEN SAFE_CAST(数量 AS INT64) IS NULL AND 数量 IS NOT NULL THEN '数量が数値でない'
+    WHEN SAFE_CAST(価格 AS INT64) < 0 THEN '価格が負の値'
+    WHEN SAFE_CAST(数量 AS INT64) <= 0 THEN '数量が0以下'
+    ELSE 'OK'
+  END as data_type_issue
+FROM \`your_project.your_dataset.orders\`
+WHERE (SAFE_CAST(価格 AS INT64) IS NULL AND 価格 IS NOT NULL AND 価格 != '')
+   OR (SAFE_CAST(数量 AS INT64) IS NULL AND 数量 IS NOT NULL)
+   OR SAFE_CAST(価格 AS INT64) < 0
+   OR SAFE_CAST(数量 AS INT64) <= 0;`,
+                    cleanup: `-- データ型の問題修正例
+UPDATE \`your_project.your_dataset.orders\`
+SET 価格 = CAST(REGEXP_REPLACE(価格, r'[^0-9.]', '') AS INT64)
+WHERE SAFE_CAST(価格 AS INT64) IS NULL AND 価格 IS NOT NULL AND 価格 != '';`
+                },
+                sqlite: {
+                    title: "データ型の検証",
+                    description: "数値や日付などのデータ型の妥当性をチェック",
+                    detection: `-- データ型の検証
+SELECT 注文ID, 価格, 数量,
+  CASE 
+    WHEN 価格 != '' AND TYPEOF(CAST(価格 AS INTEGER)) = 'integer' AND CAST(価格 AS INTEGER) < 0 THEN '価格が負の値'
+    WHEN 数量 != '' AND TYPEOF(CAST(数量 AS INTEGER)) = 'integer' AND CAST(数量 AS INTEGER) <= 0 THEN '数量が0以下'
+    WHEN 価格 != '' AND TYPEOF(CAST(価格 AS INTEGER)) != 'integer' THEN '価格が数値でない'
+    WHEN 数量 != '' AND TYPEOF(CAST(数量 AS INTEGER)) != 'integer' THEN '数量が数値でない'
+    ELSE 'OK'
+  END as data_type_issue
+FROM orders
+WHERE (価格 != '' AND TYPEOF(CAST(価格 AS INTEGER)) != 'integer')
+   OR (数量 != '' AND TYPEOF(CAST(数量 AS INTEGER)) != 'integer')
+   OR (価格 != '' AND CAST(価格 AS INTEGER) < 0)
+   OR (数量 != '' AND CAST(数量 AS INTEGER) <= 0);`,
+                    cleanup: `-- データ型の問題修正例
+UPDATE orders
+SET 価格 = CAST(価格 AS INTEGER)
+WHERE 価格 != '' AND TYPEOF(CAST(価格 AS INTEGER)) = 'integer';`
+                }
+            },
+            length_validation: {
+                bigquery: {
+                    title: "文字数制限のチェック",
+                    description: "各フィールドの文字数制限をチェック",
+                    detection: `-- 文字数制限のチェック
+SELECT 注文ID, 顧客名, 商品名,
+  LENGTH(顧客名) as customer_name_length,
+  LENGTH(商品名) as product_name_length,
+  CASE 
+    WHEN LENGTH(顧客名) > 20 THEN '顧客名が長すぎる'
+    WHEN LENGTH(商品名) > 50 THEN '商品名が長すぎる'
+    WHEN LENGTH(顧客名) < 2 THEN '顧客名が短すぎる'
+    ELSE 'OK'
+  END as length_issue
+FROM \`your_project.your_dataset.orders\`
+WHERE LENGTH(顧客名) > 20 OR LENGTH(商品名) > 50 OR LENGTH(顧客名) < 2;`,
+                    cleanup: `-- 文字数制限の対処例
+UPDATE \`your_project.your_dataset.orders\`
+SET 顧客名 = SUBSTR(顧客名, 1, 20)
+WHERE LENGTH(顧客名) > 20;`
+                },
+                sqlite: {
+                    title: "文字数制限のチェック",
+                    description: "各フィールドの文字数制限をチェック",
+                    detection: `-- 文字数制限のチェック
+SELECT 注文ID, 顧客名, 商品名,
+  LENGTH(顧客名) as customer_name_length,
+  LENGTH(商品名) as product_name_length,
+  CASE 
+    WHEN LENGTH(顧客名) > 20 THEN '顧客名が長すぎる'
+    WHEN LENGTH(商品名) > 50 THEN '商品名が長すぎる'
+    WHEN LENGTH(顧客名) < 2 THEN '顧客名が短すぎる'
+    ELSE 'OK'
+  END as length_issue
+FROM orders
+WHERE LENGTH(顧客名) > 20 OR LENGTH(商品名) > 50 OR LENGTH(顧客名) < 2;`,
+                    cleanup: `-- 文字数制限の対処例
+UPDATE orders
+SET 顧客名 = SUBSTR(顧客名, 1, 20)
+WHERE LENGTH(顧客名) > 20;`
+                }
+            },
+            special_char_check: {
+                bigquery: {
+                    title: "特殊文字・異常文字の検出",
+                    description: "制御文字や想定外の特殊文字を検出",
+                    detection: `-- 特殊文字の検出
+SELECT 注文ID, 顧客名, 商品名,
+  CASE 
+    WHEN REGEXP_CONTAINS(顧客名, r'[\\x00-\\x1F\\x7F-\\x9F]') THEN '顧客名に制御文字'
+    WHEN REGEXP_CONTAINS(商品名, r'[\\x00-\\x1F\\x7F-\\x9F]') THEN '商品名に制御文字'
+    WHEN REGEXP_CONTAINS(顧客名, r'[<>\"&\\\\]') THEN '顧客名に危険文字'
+    WHEN REGEXP_CONTAINS(商品名, r'[<>\"&\\\\]') THEN '商品名に危険文字'
+    ELSE 'OK'
+  END as special_char_issue
+FROM \`your_project.your_dataset.orders\`
+WHERE REGEXP_CONTAINS(顧客名, r'[\\x00-\\x1F\\x7F-\\x9F<>\"&\\\\]')
+   OR REGEXP_CONTAINS(商品名, r'[\\x00-\\x1F\\x7F-\\x9F<>\"&\\\\]');`,
+                    cleanup: `-- 特殊文字の除去
+UPDATE \`your_project.your_dataset.orders\`
+SET 
+  顧客名 = REGEXP_REPLACE(顧客名, r'[\\x00-\\x1F\\x7F-\\x9F<>\"&\\\\]', ''),
+  商品名 = REGEXP_REPLACE(商品名, r'[\\x00-\\x1F\\x7F-\\x9F<>\"&\\\\]', '')
+WHERE TRUE;`
+                },
+                sqlite: {
+                    title: "特殊文字・異常文字の検出",
+                    description: "想定外の特殊文字を検出",
+                    detection: `-- 特殊文字の検出（簡易版）
+SELECT 注文ID, 顧客名, 商品名,
+  CASE 
+    WHEN 顧客名 LIKE '%<%' OR 顧客名 LIKE '%>%' OR 顧客名 LIKE '%"%' THEN '顧客名に危険文字'
+    WHEN 商品名 LIKE '%<%' OR 商品名 LIKE '%>%' OR 商品名 LIKE '%"%' THEN '商品名に危険文字'
+    ELSE 'OK'
+  END as special_char_issue
+FROM orders
+WHERE 顧客名 LIKE '%<%' OR 顧客名 LIKE '%>%' OR 顧客名 LIKE '%"%'
+   OR 商品名 LIKE '%<%' OR 商品名 LIKE '%>%' OR 商品名 LIKE '%"%';`,
+                    cleanup: `-- 特殊文字の除去
+UPDATE orders
+SET 
+  顧客名 = REPLACE(REPLACE(REPLACE(顧客名, '<', ''), '>', ''), '"', ''),
+  商品名 = REPLACE(REPLACE(REPLACE(商品名, '<', ''), '>', ''), '"', '');`
+                }
+            }
+        };
+
+        function replaceTableName(query, tableName, sqlType) {
+            if (sqlType === 'bigquery') {
+                // BigQueryの場合、バッククォートで囲む
+                const tableRef = tableName.includes('.') ? `\`${tableName}\`` : `\`your_project.your_dataset.${tableName}\``;
+                return query.replace(/`your_project\.your_dataset\.orders`/g, tableRef);
+            } else {
+                // SQLiteの場合、そのまま置換
+                return query.replace(/orders/g, tableName);
+            }
+        }
+
+        function copyToClipboard(text, button) {
+            navigator.clipboard.writeText(text).then(function() {
+                const originalText = button.textContent;
+                button.textContent = 'コピー完了!';
+                button.classList.add('copied');
+                setTimeout(function() {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(function(err) {
+                console.error('コピーに失敗しました: ', err);
+                alert('コピーに失敗しました。手動でコピーしてください。');
+            });
+        }
+
+        function generateSQL() {
+            const checkboxes = document.querySelectorAll('.checklist input[type="checkbox"]');
+            const sqlType = document.querySelector('input[name="sql_type"]:checked').value;
+            const tableName = document.getElementById('tableName').value.trim() || 'orders';
+            const resultDiv = document.getElementById('result');
+            const sqlOutputDiv = document.getElementById('sqlOutput');
+            const generatedQueriesDiv = document.getElementById('generatedQueries');
+            
+            const selectedChecks = [];
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedChecks.push(checkbox.value);
+                }
+            });
+            
+            if (selectedChecks.length === 0) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result warning';
+                resultDiv.innerHTML = '⚠️ チェックボックスが選択されていません。実行したい処理を選択してください。';
+                sqlOutputDiv.style.display = 'none';
+                return;
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result success';
+            resultDiv.innerHTML = `✅ ${selectedChecks.length}個の処理に対応するSQL（${sqlType.toUpperCase()}）を生成しました。<br>テーブル名: <strong>${tableName}</strong>`;
+            
+            let queriesHTML = '';
+            selectedChecks.forEach((checkValue, index) => {
+                const queryData = sqlQueries[checkValue][sqlType];
+                if (queryData) {
+                    const detectionQuery = replaceTableName(queryData.detection, tableName, sqlType);
+                    const cleanupQuery = replaceTableName(queryData.cleanup, tableName, sqlType);
+                    
+                    queriesHTML += `
+                        <div style="margin-bottom: 30px; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+                            <h3 style="color: #2c3e50; margin-top: 0;">${queryData.title}</h3>
+                            <p style="color: #666; margin-bottom: 15px;">${queryData.description}</p>
+                            
+                            <div class="query-section">
+                                <div class="query-header">
+                                    <h4 style="color: #34495e; margin: 0;">🔍 問題検出用クエリ</h4>
+                                    <button class="copy-button" onclick="copyToClipboard(\`${detectionQuery.replace(/`/g, '\\`')}\`, this)">コピー</button>
+                                </div>
+                                <div class="query-content">
+                                    <pre style="background-color: #f8f9fa; padding: 15px; margin: 0; overflow-x: auto; font-size: 14px;"><code>${detectionQuery}</code></pre>
+                                </div>
+                            </div>
+                            
+                            <div class="query-section">
+                                <div class="query-header">
+                                    <h4 style="color: #34495e; margin: 0;">🔧 データクリーンアップ用クエリ</h4>
+                                    <button class="copy-button" onclick="copyToClipboard(\`${cleanupQuery.replace(/`/g, '\\`')}\`, this)">コピー</button>
+                                </div>
+                                <div class="query-content">
+                                    <pre style="background-color: #f8f9fa; padding: 15px; margin: 0; overflow-x: auto; font-size: 14px;"><code>${cleanupQuery}</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            generatedQueriesDiv.innerHTML = queriesHTML;
+            sqlOutputDiv.style.display = 'block';
+            sqlOutputDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function resetChecks() {
+            const checkboxes = document.querySelectorAll('.checklist input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('sqlOutput').style.display = 'none';
+        }
+        
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('データベース正規化・クリーニングツールが読み込まれました');
+        });
+    </script>
+</body>
+</html>
